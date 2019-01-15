@@ -119,7 +119,9 @@ func (s *sfsSyncer) SyncFn(in runtime.Object) error {
 		return err
 	}
 
-	out.Spec.VolumeClaimTemplates = s.ensureVolumeClaimTemplates(out.Spec.VolumeClaimTemplates)
+	if s.cluster.Spec.VolumeSpec.PersistentVolumeClaim != nil {
+		out.Spec.VolumeClaimTemplates = s.ensureVolumeClaimTemplates(out.Spec.VolumeClaimTemplates)
+	}
 
 	return nil
 }
@@ -449,6 +451,17 @@ func (s *sfsSyncer) ensureContainersSpec() []core.Container {
 
 func (s *sfsSyncer) ensureVolumes() []core.Volume {
 	fileMode := int32(0644)
+	dataVolume := core.VolumeSource{
+		EmptyDir: s.cluster.Spec.VolumeSpec.EmptyDir,
+		HostPath: s.cluster.Spec.VolumeSpec.HostPath,
+	}
+
+	if s.cluster.Spec.VolumeSpec.PersistentVolumeClaim != nil {
+		dataVolume.PersistentVolumeClaim = &core.PersistentVolumeClaimVolumeSource{
+			ClaimName: dataVolumeName,
+		}
+	}
+
 	return []core.Volume{
 		ensureVolume(confVolumeName, core.VolumeSource{
 			EmptyDir: &core.EmptyDirVolumeSource{},
@@ -463,11 +476,7 @@ func (s *sfsSyncer) ensureVolumes() []core.Volume {
 			},
 		}),
 
-		ensureVolume(dataVolumeName, core.VolumeSource{
-			PersistentVolumeClaim: &core.PersistentVolumeClaimVolumeSource{
-				ClaimName: dataVolumeName,
-			},
-		}),
+		ensureVolume(dataVolumeName, dataVolume),
 	}
 }
 
@@ -500,7 +509,7 @@ func (s *sfsSyncer) ensureVolumeClaimTemplates(in []core.PersistentVolumeClaim) 
 		}
 	}
 
-	data.Spec = s.cluster.Spec.VolumeSpec.PersistentVolumeClaimSpec
+	data.Spec = *s.cluster.Spec.VolumeSpec.PersistentVolumeClaim
 
 	in[0] = data
 

@@ -114,6 +114,12 @@ spec:
                   items:
                     type: string
                   type: array
+                emptyDir:
+                  type: object
+                hostPath:
+                  type: object
+                persistentVolumeClaim:
+                  type: object
                 resources:
                   type: object
                 selector:
